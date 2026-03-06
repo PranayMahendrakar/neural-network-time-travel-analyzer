@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🧠 Neural Network Time Travel Analyzer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a1a;
+    color: #e0e0ff;
+    font-family: 'Courier New', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  .header {
+    background: linear-gradient(135deg, #1a1a3e 0%, #0d1b4b 50%, #1a0d3e 100%);
+    padding: 20px 30px;
+    border-bottom: 2px solid #3a3aff;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    box-shadow: 0 4px 20px rgba(58,58,255,0.3);
+  }
+  .header h1 { font-size: 1.6rem; color: #a0a0ff; letter-spacing: 2px; }
+  .header .subtitle { font-size: 0.75rem; color: #6060cc; margin-top: 3px; }
+  .brain-icon { font-size: 2.5rem; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+  .main-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    grid-template-rows: auto 1fr;
+    gap: 0;
+    height: calc(100vh - 80px);
+  }
+  .sidebar {
+    background: #0d0d2b;
+    border-right: 1px solid #2a2a5a;
+    padding: 15px;
+    overflow-y: auto;
+    grid-row: 1 / 3;
+  }
+  .controls-bar {
+    background: #111130;
+    border-bottom: 1px solid #2a2a5a;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .viz-area {
+    padding: 15px;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 15px;
+  }
+  .panel {
+    background: #0d0d2b;
+    border: 1px solid #2a2a5a;
+    border-radius: 8px;
+    padding: 15px;
+    position: relative;
+    overflow: hidden;
+  }
+  .panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #3a3aff, #a03aff, #3a3aff);
+    background-size: 200% 100%;
+    animation: shimmer 3s linear infinite;
+  }
+  @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+  .panel-title {
+    font-size: 0.8rem;
+    color: #7070cc;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .panel-title .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #3a3aff;
+    animation: blink 1.5s infinite;
+  }
+  @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  canvas { display: block; width: 100% !important; }
+  .btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    font-weight: bold;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #2a2aff, #6a2aff);
+    color: white;
+    box-shadow: 0 0 10px rgba(42,42,255,0.4);
+  }
+  .btn-primary:hover { box-shadow: 0 0 20px rgba(42,42,255,0.7); transform: translateY(-1px); }
+  .btn-danger { background: linear-gradient(135deg, #ff2a2a, #ff6a2a); color: white; }
+  .btn-success { background: linear-gradient(135deg, #2aff6a, #2aff2a); color: #001a00; }
+  .btn-warning { background: linear-gradient(135deg, #ffaa2a, #ff6a2a); color: #1a0a00; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .slider-group { display: flex; flex-direction: column; gap: 4px; }
+  .slider-group label { font-size: 0.7rem; color: #6060cc; }
+  input[type=range] {
+    -webkit-appearance: none;
+    height: 4px;
+    background: #2a2a5a;
+    border-radius: 2px;
+    outline: none;
+    width: 120px;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px; height: 12px;
+    background: #3a3aff;
+    border-radius: 50%;
+    cursor: pointer;
+  }
+  .epoch-display {
+    font-size: 1.4rem;
+    color: #a0a0ff;
+    font-weight: bold;
+    min-width: 100px;
+    text-align: center;
+  }
+  .phase-badge {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    letter-spacing: 1px;
+  }
+  .phase-random { background: #3a1a5a; color: #c080ff; border: 1px solid #6a3a8a; }
+  .phase-rapid { background: #1a3a1a; color: #80ff80; border: 1px solid #3a8a3a; }
+  .phase-refine { background: #1a2a3a; color: #80c0ff; border: 1px solid #3a6a8a; }
+  .phase-converge { background: #3a3a1a; color: #ffff80; border: 1px solid #8a8a3a; }
+  .phase-plateau { background: #3a1a1a; color: #ff8080; border: 1px solid #8a3a3a; }
+  .stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .stat-box {
+    background: #0a0a20;
+    border: 1px solid #1a1a4a;
+    border-radius: 6px;
+    padding: 8px;
+    text-align: center;
+  }
+  .stat-box .val { font-size: 1.1rem; color: #a0a0ff; font-weight: bold; }
+  .stat-box .lbl { font-size: 0.65rem; color: #5050aa; margin-top: 2px; }
+  .weight-legend {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.7rem;
+    color: #7070cc;
+  }
+  .legend-color {
+    width: 12px; height: 12px;
+    border-radius: 2px;
+  }
+  .concept-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  .concept-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    background: #0a0a1e;
+    border-radius: 4px;
+    border-left: 3px solid #3a3aff;
+    font-size: 0.75rem;
+  }
+  .concept-strength {
+    height: 4px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, #3a3aff, #a03aff);
+    flex: 1;
+  }
+  .time-slider-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+  }
+  .time-slider-container input[type=range] { width: 200px; flex: 1; }
+  .sidebar-section { margin-bottom: 20px; }
+  .sidebar-section h3 { font-size: 0.75rem; color: #5050aa; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; border-bottom: 1px solid #1a1a3a; padding-bottom: 5px; }
+  .network-select { width: 100%; padding: 6px; background: #0a0a20; border: 1px solid #2a2a5a; color: #a0a0ff; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.8rem; margin-bottom: 8px; }
+  .param-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 0.75rem; }
+  .param-row label { color: #6060aa; }
+  .param-row .val { color: #a0a0ff; font-weight: bold; }
+  .param-slider { width: 80px; }
+  .progress-bar { height: 6px; background: #1a1a3a; border-radius: 3px; overflow: hidden; margin-top: 5px; }
+  .progress-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #3a3aff, #a03aff); transition: width 0.3s; }
+  .event-log { max-height: 150px; overflow-y: auto; font-size: 0.7rem; }
+  .log-entry { padding: 3px 0; border-bottom: 1px solid #1a1a2a; color: #6060cc; }
+  .log-entry .epoch-tag { color: #a03aff; }
+  .log-entry .event-text { color: #8080dd; }
+  .panel-wide { grid-column: 1 / 3; }
+  .tooltip {
+    position: absolute;
+    background: rgba(10,10,40,0.95);
+    border: 1px solid #3a3aff;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    color: #c0c0ff;
+    pointer-events: none;
+    z-index: 100;
+    white-space: nowrap;
+    display: none;
+  }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: #0a0a1a; }
+  ::-webkit-scrollbar-thumb { background: #2a2a5a; border-radius: 2px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="brain-icon">🧠</div>
+  <div>
+    <h1>NEURAL NETWORK TIME TRAVEL ANALYZER</h1>
+    <div class="subtitle">Visualize Weight Evolution &bull; Learning Phases &bull; Concept Formation</div>
+  </div>
+  <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+    <div class="epoch-display" id="epochDisplay">Epoch 0</div>
+    <div id="phaseBadge" class="phase-badge phase-random">RANDOM INIT</div>
+  </div>
+</div>
+
+<div class="main-layout">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-section">
+      <h3>🔬 Network Config</h3>
+      <select class="network-select" id="networkType" onchange="resetSimulation()">
+        <option value="classifier">Image Classifier (CNN)</option>
+        <option value="language">Language Model (LSTM)</option>
+        <option value="autoencoder">Autoencoder</option>
+        <option value="regression">Regression Net</option>
+      </select>
+      <div class="param-row">
+        <label>Hidden Layers</label>
+        <input type="range" class="param-slider" id="numLayers" min="2" max="6" value="4" oninput="updateParam('numLayers',this.value)">
+        <span class="val" id="numLayersVal">4</span>
+      </div>
+      <div class="param-row">
+        <label>Neurons/Layer</label>
+        <input type="range" class="param-slider" id="neuronSize" min="8" max="128" step="8" value="32" oninput="updateParam('neuronSize',this.value)">
+        <span class="val" id="neuronSizeVal">32</span>
+      </div>
+      <div class="param-row">
+        <label>Total Epochs</label>
+        <input type="range" class="param-slider" id="totalEpochs" min="50" max="500" step="50" value="200" oninput="updateParam('totalEpochs',this.value)">
+        <span class="val" id="totalEpochsVal">200</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>⚡ Training Params</h3>
+      <div class="param-row">
+        <label>Learning Rate</label>
+        <input type="range" class="param-slider" id="learningRate" min="1" max="100" value="30" oninput="updateLR(this.value)">
+        <span class="val" id="lrVal">0.030</span>
+      </div>
+      <div class="param-row">
+        <label>Batch Size</label>
+        <input type="range" class="param-slider" id="batchSize" min="8" max="256" step="8" value="32" oninput="updateParam('batchSize',this.value)">
+        <span class="val" id="batchSizeVal">32</span>
+      </div>
+      <div class="param-row">
+        <label>Momentum</label>
+        <input type="range" class="param-slider" id="momentum" min="0" max="99" value="90" oninput="updateMomentum(this.value)">
+        <span class="val" id="momentumVal">0.90</span>
+      </div>
+      <div class="param-row">
+        <label>Dropout</label>
+        <input type="range" class="param-slider" id="dropout" min="0" max="80" value="20" oninput="updateDropout(this.value)">
+        <span class="val" id="dropoutVal">0.20</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>📊 Live Statistics</h3>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="val" id="statLoss">-</div><div class="lbl">LOSS</div></div>
+        <div class="stat-box"><div class="val" id="statAcc">-</div><div class="lbl">ACCURACY</div></div>
+        <div class="stat-box"><div class="val" id="statGrad">-</div><div class="lbl">GRAD NORM</div></div>
+        <div class="stat-box"><div class="val" id="statLR">-</div><div class="lbl">CURR LR</div></div>
+      </div>
+      <div style="margin-top:12px">
+        <div style="font-size:0.7rem;color:#5050aa;margin-bottom:4px">TRAINING PROGRESS</div>
+        <div class="progress-bar"><div class="progress-fill" id="trainProgress" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>📝 Event Log</h3>
+      <div class="event-log" id="eventLog"></div>
+    </div>
+  </div>
+
+  <!-- CONTROLS BAR -->
+  <div class="controls-bar">
+    <button class="btn btn-success" id="btnStart" onclick="startTraining()">▶ START TRAINING</button>
+    <button class="btn btn-warning" id="btnPause" onclick="pauseTraining()" disabled>⏸ PAUSE</button>
+    <button class="btn btn-danger" id="btnReset" onclick="resetSimulation()">↺ RESET</button>
+    <div style="width:1px;height:30px;background:#2a2a5a;margin:0 5px"></div>
+    <div class="slider-group">
+      <label>Speed</label>
+      <input type="range" id="speedSlider" min="1" max="20" value="5" oninput="updateSpeed(this.value)">
+    </div>
+    <div style="font-size:0.75rem;color:#6060aa" id="speedLabel">5x</div>
+    <div style="width:1px;height:30px;background:#2a2a5a;margin:0 5px"></div>
+    <div class="time-slider-container">
+      <span style="font-size:0.7rem;color:#6060aa">TIME TRAVEL:</span>
+      <input type="range" id="timeSlider" min="0" max="100" value="0" oninput="timeTravelTo(this.value)" style="width:180px">
+      <span style="font-size:0.75rem;color:#a0a0ff" id="timeLabel">Epoch 0</span>
+    </div>
+    <div style="margin-left:auto;font-size:0.75rem;color:#4040aa">
+      🕐 Snapshot every <strong id="snapshotRate">10</strong> epochs
+    </div>
+  </div>
+
+  <!-- VIZ AREA -->
+  <div class="viz-area">
+
+    <!-- Loss Curve -->
+    <div class="panel">
+      <div class="panel-title"><span class="dot"></span>LOSS &amp; ACCURACY CURVES</div>
+      <canvas id="lossCanvas" height="160"></canvas>
+      <div class="weight-legend">
+        <div class="legend-item"><div class="legend-color" style="background:#ff4466"></div>Train Loss</div>
+        <div class="legend-item"><div class="legend-color" style="background:#ff8833"></div>Val Loss</div>
+        <div class="legend-item"><div class="legend-color" style="background:#44ff88"></div>Accuracy</div>
+      </div>
+    </div>
+
+    <!-- Weight Distribution -->
+    <div class="panel">
+      <div class="panel-title"><span class="dot" style="background:#a03aff"></span>WEIGHT DISTRIBUTION OVER TIME</div>
+      <canvas id="weightDistCanvas" height="160"></canvas>
+      <div class="weight-legend" id="layerLegend"></div>
+    </div>
+
+    <!-- Network Visualization -->
+    <div class="panel">
+      <div class="panel-title"><span class="dot" style="background:#3aff88"></span>NETWORK WEIGHT HEATMAP</div>
+      <canvas id="networkCanvas" height="180"></canvas>
+      <div style="font-size:0.7rem;color:#5050aa;margin-top:6px;text-align:center">Color = weight magnitude | Red = negative, Blue = positive</div>
+    </div>
+
+    <!-- Gradient Flow -->
+    <div class="panel">
+      <div class="panel-title"><span class="dot" style="background:#ffaa00"></span>GRADIENT FLOW ANALYSIS</div>
+      <canvas id="gradientCanvas" height="180"></canvas>
+      <div style="font-size:0.7rem;color:#5050aa;margin-top:6px;text-align:center">Gradient magnitudes per layer over training epochs</div>
+    </div>
+
+    <!-- Concept Formation -->
+    <div class="panel">
+      <div class="panel-title"><span class="dot" style="background:#ff6633"></span>CONCEPT FORMATION TRACKER</div>
+      <canvas id="conceptCanvas" height="140"></canvas>
+      <div class="concept-list" id="conceptList" style="margin-top:8px"></div>
+    </div>
+
+    <!-- Learning Phases -->
+    <div class="panel">
+      <div class="panel-title"><span class="dot" style="background:#33ccff"></span>LEARNING PHASE TIMELINE</div>
+      <canvas id="phaseCanvas" height="60"></canvas>
+      <div id="phaseDetails" style="margin-top:10px;font-size:0.75rem;color:#6060cc;line-height:1.6"></div>
+      <canvas id="weightVelocityCanvas" height="100" style="margin-top:10px"></canvas>
+    </div>
+
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+<script>
+// ============================================================
+// NEURAL NETWORK TIME TRAVEL ANALYZER - Core Engine
+// ============================================================
+
+const CONFIG = {
+  numLayers: 4, neuronSize: 32, totalEpochs: 200,
+  learningRate: 0.03, batchSize: 32, momentum: 0.9, dropout: 0.2,
+  speed: 5, snapshotEvery: 10,
+  networkType: 'classifier'
+};
+
+let state = {
+  epoch: 0, running: false, paused: false,
+  animFrame: null, lastTime: 0,
+  snapshots: [],
+  currentSnapshot: null,
+  history: { loss: [], valLoss: [], accuracy: [], gradNorm: [], lr: [] },
+  concepts: {},
+  phases: [],
+  currentPhase: 'random'
+};
+
+// Phase definitions
+const PHASES = {
+  random: { name: 'Random Init', color: '#c080ff', desc: 'Weights are randomly initialized. Loss is high and random.' },
+  rapid: { name: 'Rapid Learning', color: '#80ff80', desc: 'Network rapidly reduces loss, learning basic features.' },
+  refine: { name: 'Refinement', color: '#80c0ff', desc: 'Fine-tuning weights, learning complex representations.' },
+  converge: { name: 'Convergence', color: '#ffff80', desc: 'Loss stabilizing. Weights settling into optimal values.' },
+  plateau: { name: 'Plateau/Overfit', color: '#ff8080', desc: 'Validation loss may increase. Possible overfitting.' }
+};
+
+// Network-specific concepts
+const NETWORK_CONCEPTS = {
+  classifier: ['Edge Detection','Color Blobs','Textures','Shapes','Object Parts','Faces/Bodies','Semantic Labels','Spatial Relations'],
+  language: ['Character Patterns','Word Boundaries','Grammar Rules','Syntax Trees','Semantic Meanings','Context Window','Long-range Deps','Discourse'],
+  autoencoder: ['Low-freq Features','Spatial Structs','Bottleneck Code','Reconstruction','Latent Clusters','Manifold','Denoising','Compression'],
+  regression: ['Linear Trend','Nonlinear Curve','Feature Interactions','Variance Capture','Residuals','Outlier Handling','Smoothness','Extrapolation']
+};
+
+// Layer colors for visualization
+const LAYER_COLORS = ['#3a3aff','#a03aff','#ff3aaa','#ff6a3a','#ffaa3a','#3affaa'];
+
+// ============================================================
+// WEIGHT SIMULATION ENGINE
+// ============================================================
+
+function generateWeights(layerIdx, epoch, totalEpochs) {
+  const progress = epoch / totalEpochs;
+  const noise = CONFIG.learningRate * (1 - progress * 0.8);
+  const scale = 0.1 + progress * 0.4;
+  const weights = [];
+  for (let i = 0; i < 60; i++) {
+    const base = Math.sin(i * 0.3 + layerIdx * 1.2 + epoch * 0.05) * scale;
+    const n = (Math.random() - 0.5) * noise * 2;
+    weights.push(base + n);
+  }
+  return weights;
+}
+
+function computeLoss(epoch, totalEpochs) {
+  const p = epoch / totalEpochs;
+  const decay = 2.5 * Math.exp(-3.5 * p) + 0.15;
+  const noise = Math.random() * 0.08 * (1 - p * 0.6);
+  return Math.max(0.05, decay + noise);
+}
+
+function computeValLoss(epoch, totalEpochs) {
+  const p = epoch / totalEpochs;
+  const base = 2.5 * Math.exp(-3 * p) + 0.2;
+  const overfit = p > 0.7 ? (p - 0.7) * 0.4 : 0;
+  const noise = Math.random() * 0.1;
+  return Math.max(0.1, base + overfit + noise);
+}
+
+function computeAccuracy(epoch, totalEpochs) {
+  const p = epoch / totalEpochs;
+  const acc = 1 - Math.exp(-4 * p) * 0.9;
+  const noise = (Math.random() - 0.5) * 0.03;
+  return Math.min(0.99, Math.max(0.1, acc + noise));
+}
+
+function computeGradNorm(epoch, totalEpochs) {
+  const p = epoch / totalEpochs;
+  const base = 1.5 * Math.exp(-2 * p) + 0.1;
+  const noise = Math.random() * 0.3;
+  return Math.max(0.01, base + noise);
+}
+
+function detectPhase(epoch, totalEpochs) {
+  const p = epoch / totalEpochs;
+  if (p < 0.05) return 'random';
+  if (p < 0.25) return 'rapid';
+  if (p < 0.55) return 'refine';
+  if (p < 0.80) return 'converge';
+  return 'plateau';
+}
+
+function computeConceptStrength(conceptIdx, epoch, totalEpochs) {
+  const p = epoch / totalEpochs;
+  const offset = conceptIdx * 0.12;
+  const strength = Math.max(0, Math.min(1, (p - offset) * 2.5));
+  const noise = Math.random() * 0.05;
+  return strength + noise;
+}
+
+// ============================================================
+// SNAPSHOT SYSTEM (Time Travel!)
+// ============================================================
+
+function takeSnapshot(epoch) {
+  const snap = {
+    epoch,
+    loss: state.history.loss[epoch] || 0,
+    valLoss: state.history.valLoss[epoch] || 0,
+    accuracy: state.history.accuracy[epoch] || 0,
+    gradNorm: state.history.gradNorm[epoch] || 0,
+    lr: state.history.lr[epoch] || CONFIG.learningRate,
+    phase: detectPhase(epoch, CONFIG.totalEpochs),
+    layerWeights: Array.from({length: CONFIG.numLayers+2}, (_, i) => generateWeights(i, epoch, CONFIG.totalEpochs)),
+    conceptStrengths: NETWORK_CONCEPTS[CONFIG.networkType].map((_, i) => computeConceptStrength(i, epoch, CONFIG.totalEpochs))
+  };
+  state.snapshots.push(snap);
+  return snap;
+}
+
+// ============================================================
+// CANVAS RENDERING
+// ============================================================
+
+function resizeCanvas(canvas) {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width - 30;
+  return canvas.width;
+}
+
+// Loss/Accuracy Chart
+function drawLossChart() {
+  const canvas = document.getElementById('lossCanvas');
+  const w = resizeCanvas(canvas);
+  const h = canvas.height;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, w, h);
+
+  // Background grid
+  ctx.strokeStyle = '#1a1a3a';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = (h * i / 4);
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+  }
+  for (let i = 0; i <= 8; i++) {
+    const x = (w * i / 8);
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+  }
+
+  const total = CONFIG.totalEpochs;
+  const pts = state.history.loss.length;
+  if (pts < 2) return;
+
+  function drawLine(data, color, maxY, dash = false) {
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    if (dash) ctx.setLineDash([4, 3]); else ctx.setLineDash([]);
+    ctx.shadowBlur = 6; ctx.shadowColor = color;
+    for (let i = 0; i < data.length; i++) {
+      const x = (i / (total - 1)) * w;
+      const y = h - (data[i] / maxY) * (h - 10) - 5;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.setLineDash([]);
+  }
+
+  const maxLoss = Math.max(...state.history.loss, ...state.history.valLoss, 0.1) * 1.1;
+  drawLine(state.history.loss, '#ff4466', maxLoss);
+  drawLine(state.history.valLoss, '#ff8833', maxLoss, true);
+  drawLine(state.history.accuracy.map(a => a * maxLoss), '#44ff88', maxLoss);
+
+  // Current epoch marker
+  if (state.epoch > 0) {
+    const x = ((state.epoch - 1) / (total - 1)) * w;
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 2]);
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Y-axis labels
+  ctx.fillStyle = '#404080';
+  ctx.font = '9px Courier New';
+  ctx.fillText(maxLoss.toFixed(2), 2, 12);
+  ctx.fillText('0.00', 2, h - 2);
+}
+
+// Weight Distribution Chart (violin-like)
+function drawWeightDist() {
+  const canvas = document.getElementById('weightDistCanvas');
+  const w = resizeCanvas(canvas);
+  const h = canvas.height;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, w, h);
+
+  const numSnaps = state.snapshots.length;
+  if (numSnaps < 1) return;
+
+  const numLayers = CONFIG.numLayers + 2;
+  const sliceW = w / Math.max(numSnaps, 1);
+
+  // For each snapshot, draw layer distributions
+  for (let snapIdx = 0; snapIdx < numSnaps; snapIdx++) {
+    const snap = state.snapshots[snapIdx];
+    const x = snapIdx * sliceW;
+
+    for (let layerIdx = 0; layerIdx < Math.min(numLayers, snap.layerWeights.length); layerIdx++) {
+      const weights = snap.layerWeights[layerIdx];
+      const mean = weights.reduce((a,b) => a+b, 0) / weights.length;
+      const variance = weights.reduce((a,b) => a + (b-mean)**2, 0) / weights.length;
+      const std = Math.sqrt(variance);
+
+      const centerY = h / 2;
+      const color = LAYER_COLORS[layerIdx % LAYER_COLORS.length];
+      const alpha = 0.6 / numLayers;
+
+      ctx.fillStyle = color + Math.floor(alpha * 255).toString(16).padStart(2,'0');
+      const barH = Math.min(std * 80, h / 2 - 5);
+      const meanY = centerY - mean * 30;
+
+      ctx.fillRect(x, meanY - barH, Math.max(sliceW - 1, 1), barH * 2);
+    }
+  }
+
+  // Overlay current epoch line
+  if (state.epoch > 0 && numSnaps > 0) {
+    const snapEpoch = Math.floor(state.epoch / CONFIG.snapshotEvery);
+    if (snapEpoch < numSnaps) {
+      const x = snapEpoch * sliceW + sliceW / 2;
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  // Labels
+  ctx.fillStyle = '#404080';
+  ctx.font = '9px Courier New';
+  ctx.fillText('Epoch 0', 2, h - 2);
+  if (numSnaps > 1) ctx.fillText('Epoch ' + state.epoch, w - 60, h - 2);
+  
+  // Update legend
+  const legend = document.getElementById('layerLegend');
+  if (legend && legend.children.length === 0) {
+    for (let i = 0; i < numLayers; i++) {
+      const item = document.createElement('div');
+      item.className = 'legend-item';
+      item.innerHTML = '<div class="legend-color" style="background:' + LAYER_COLORS[i % LAYER_COLORS.length] + '"></div>L' + i;
+      legend.appendChild(item);
+    }
+  }
+}
+
+// Network Heatmap
+function drawNetworkHeatmap() {
+  const canvas = document.getElementById('networkCanvas');
+  const w = resizeCanvas(canvas);
+  const h = canvas.height;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, w, h);
+
+  const snap = state.currentSnapshot || state.snapshots[state.snapshots.length - 1];
+  if (!snap) return;
+
+  const numLayers = snap.layerWeights.length;
+  const cellW = w / numLayers;
+  const weightsPerLayer = 60;
+  const cols = 8;
+  const rows = Math.ceil(weightsPerLayer / cols);
+  const cellSize = Math.min(cellW / cols, (h - 20) / rows);
+
+  for (let l = 0; l < numLayers; l++) {
+    const weights = snap.layerWeights[l];
+    const layerX = l * cellW;
+
+    // Layer label
+    ctx.fillStyle = '#5050aa';
+    ctx.font = '9px Courier New';
+    ctx.fillText('L' + l, layerX + 2, h - 2);
+
+    for (let w_ = 0; w_ < Math.min(weights.length, cols * rows); w_++) {
+      const col = w_ % cols;
+      const row = Math.floor(w_ / cols);
+      const x = layerX + col * cellSize + 1;
+      const y = row * cellSize + 1;
+      const val = weights[w_];
+      const clamped = Math.max(-1, Math.min(1, val));
+
+      let r, g, b;
+      if (clamped < 0) { r = Math.floor(-clamped * 220); g = 20; b = 20; }
+      else { r = 20; g = 20; b = Math.floor(clamped * 220); }
+      const alpha = Math.abs(clamped) * 0.8 + 0.1;
+
+      ctx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+      ctx.fillRect(x, y, cellSize - 2, cellSize - 2);
+    }
+  }
+}
+
+// Gradient Flow
+function drawGradientFlow() {
+  const canvas = document.getElementById('gradientCanvas');
+  const w = resizeCanvas(canvas);
+  const h = canvas.height;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, w, h);
+
+  // Background grid
+  ctx.strokeStyle = '#1a1a3a';
+  ctx.lineWidth = 1;
+  for (let i = 1; i <= 3; i++) {
+    ctx.beginPath(); ctx.moveTo(0, h * i / 4); ctx.lineTo(w, h * i / 4); ctx.stroke();
+  }
+
+  const numLayers = CONFIG.numLayers + 2;
+  const layerW = w / numLayers;
+
+  for (let l = 0; l < numLayers; l++) {
+    // Gradient bars per epoch snapshot
+    const numSnaps = state.snapshots.length;
+    if (numSnaps === 0) continue;
+
+    for (let s = 0; s < numSnaps; s++) {
+      const snap = state.snapshots[s];
+      const progress = s / Math.max(numSnaps - 1, 1);
+      // Compute gradient magnitude for this layer (simulated: earlier layers have smaller grads = vanishing)
+      const baseGrad = snap.gradNorm;
+      const layerFactor = Math.pow(0.75, numLayers - 1 - l); // vanishing gradient
+      const gradMag = baseGrad * layerFactor * (0.8 + Math.random() * 0.4);
+      
+      const x = l * layerW + (s / numSnaps) * layerW;
+      const barH = Math.min(gradMag * 60, h - 20);
+      const color = LAYER_COLORS[l % LAYER_COLORS.length];
+      const alpha = 0.3 + progress * 0.5;
+      
+      ctx.fillStyle = color + Math.floor(alpha * 255).toString(16).padStart(2,'0');
+      ctx.fillRect(x, h - barH - 10, Math.max(1, layerW / numSnaps - 0.5), barH);
+    }
+
+    // Layer label
+    ctx.fillStyle = '#5050aa';
+    ctx.font = '9px Courier New';
+    ctx.fillText('L' + l, l * layerW + 2, h - 2);
+    
+    // Separator
+    ctx.strokeStyle = '#1a1a3a';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(l * layerW, 0); ctx.lineTo(l * layerW, h); ctx.stroke();
+  }
+
+  // Gradient norm line
+  if (state.history.gradNorm.length > 1) {
+    ctx.beginPath();
+    ctx.strokeStyle = '#ffaa00';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([3, 2]);
+    for (let i = 0; i < state.history.gradNorm.length; i++) {
+      const x = (i / (CONFIG.totalEpochs - 1)) * w;
+      const y = h - (state.history.gradNorm[i] / 2) * (h - 20) - 10;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+// Concept Formation
+function drawConceptFormation() {
+  const canvas = document.getElementById('conceptCanvas');
+  const w = resizeCanvas(canvas);
+  const h = canvas.height;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, w, h);
+
+  const concepts = NETWORK_CONCEPTS[CONFIG.networkType];
+  const numConcepts = concepts.length;
+  const rowH = h / numConcepts;
+  const numEpochs = CONFIG.totalEpochs;
+
+  for (let c = 0; c < numConcepts; c++) {
+    const y = c * rowH;
+    
+    // Draw emergence line over time
+    ctx.beginPath();
+    ctx.strokeStyle = 'hsl(' + (c * 360 / numConcepts) + ', 80%, 60%)';
+    ctx.lineWidth = 1.5;
+    for (let e = 0; e <= state.epoch; e++) {
+      const strength = computeConceptStrength(c, e, numEpochs);
+      const x = (e / (numEpochs - 1)) * w;
+      const yPos = y + rowH - strength * (rowH - 2) - 1;
+      if (e === 0) ctx.moveTo(x, yPos); else ctx.lineTo(x, yPos);
+    }
+    ctx.stroke();
+
+    // Fill area
+    ctx.fillStyle = 'hsla(' + (c * 360 / numConcepts) + ', 80%, 60%, 0.1)';
+    ctx.beginPath();
+    for (let e = 0; e <= state.epoch; e++) {
+      const strength = computeConceptStrength(c, e, numEpochs);
+      const x = (e / (numEpochs - 1)) * w;
+      const yPos = y + rowH - strength * (rowH - 2) - 1;
+      if (e === 0) ctx.moveTo(x, y + rowH); 
+      ctx.lineTo(x, yPos);
+    }
+    ctx.lineTo((state.epoch / (numEpochs - 1)) * w, y + rowH);
+    ctx.closePath();
+    ctx.fill();
+
+    // Label
+    ctx.fillStyle = 'rgba(80, 80, 160, 0.8)';
+    ctx.font = '8px Courier New';
+    ctx.fillText(concepts[c], 2, y + rowH - 2);
+  }
+}
+
+// Phase Timeline
+function drawPhaseTimeline() {
+  const canvas = document.getElementById('phaseCanvas');
+  const w = resizeCanvas(canvas);
+  const h = canvas.height;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, w, h);
+
+  const phases = ['random','rapid','refine','converge','plateau'];
+  const phaseRanges = { random:[0,0.05], rapid:[0.05,0.25], refine:[0.25,0.55], converge:[0.55,0.80], plateau:[0.80,1.0] };
+  const phaseColors = { random:'rgba(192,128,255,0.4)', rapid:'rgba(128,255,128,0.4)', refine:'rgba(128,192,255,0.4)', converge:'rgba(255,255,128,0.4)', plateau:'rgba(255,128,128,0.4)' };
+
+  for (const phase of phases) {
+    const [start, end] = phaseRanges[phase];
+    ctx.fillStyle = phaseColors[phase];
+    ctx.fillRect(start * w, 0, (end - start) * w, h);
+    
+    const mid = (start + end) / 2 * w;
+    ctx.fillStyle = 'rgba(150,150,200,0.7)';
+    ctx.font = '8px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText(PHASES[phase].name, mid, h / 2 + 4);
+  }
+  ctx.textAlign = 'left';
+
+  // Current position marker
+  if (state.epoch > 0) {
+    const x = (state.epoch / CONFIG.totalEpochs) * w;
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+    
+    // Arrow indicator
+    ctx.fillStyle = 'white';
+    ctx.beginPath();
+    ctx.moveTo(x - 5, 0);
+    ctx.lineTo(x + 5, 0);
+    ctx.lineTo(x, 8);
+    ctx.fill();
+  }
+}
+
+// Weight Velocity
+function drawWeightVelocity() {
+  const canvas = document.getElementById('weightVelocityCanvas');
+  const w = resizeCanvas(canvas);
+  const h = canvas.height;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, w, h);
+
+  const snaps = state.snapshots;
+  if (snaps.length < 2) return;
+
+  // Grid
+  ctx.strokeStyle = '#1a1a3a';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 3; i++) {
+    const y = h * i / 3;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+  }
+
+  const numLayers = CONFIG.numLayers + 2;
+  
+  for (let l = 0; l < Math.min(numLayers, snaps[0].layerWeights.length); l++) {
+    const velocities = [];
+    for (let s = 1; s < snaps.length; s++) {
+      const prev = snaps[s-1].layerWeights[l];
+      const curr = snaps[s].layerWeights[l];
+      const vel = curr.reduce((acc, v, i) => acc + Math.abs(v - prev[i]), 0) / curr.length;
+      velocities.push(vel);
+    }
+    
+    const maxVel = Math.max(...velocities, 0.001);
+    ctx.beginPath();
+    ctx.strokeStyle = LAYER_COLORS[l % LAYER_COLORS.length];
+    ctx.lineWidth = 1.5;
+    ctx.shadowBlur = 4;
+    ctx.shadowColor = LAYER_COLORS[l % LAYER_COLORS.length];
+    
+    for (let i = 0; i < velocities.length; i++) {
+      const x = (i / (snaps.length - 2)) * w;
+      const y = h - (velocities[i] / maxVel) * (h - 10) - 5;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  ctx.fillStyle = '#404080';
+  ctx.font = '9px Courier New';
+  ctx.fillText('Weight Change Velocity (per layer)', 2, 10);
+}
+
+// Update concept list UI
+function updateConceptList() {
+  const list = document.getElementById('conceptList');
+  const concepts = NETWORK_CONCEPTS[CONFIG.networkType];
+  list.innerHTML = '';
+  
+  concepts.forEach((concept, i) => {
+    const strength = computeConceptStrength(i, state.epoch, CONFIG.totalEpochs);
+    const item = document.createElement('div');
+    item.className = 'concept-item';
+    item.innerHTML = '<span style="color:hsl(' + (i * 360 / concepts.length) + ',80%,60%)">' + concept + '</span>' +
+      '<div class="concept-strength" style="width:' + (strength * 100) + '%;background:hsl(' + (i * 360 / concepts.length) + ',80%,50%)"></div>' +
+      '<span style="font-size:0.65rem;color:#5050aa">' + (strength * 100).toFixed(0) + '%</span>';
+    list.appendChild(item);
+  });
+}
+
+// ============================================================
+// TRAINING LOOP
+// ============================================================
+
+let epochAccum = 0;
+let lastFrameTime = 0;
+
+function trainingLoop(timestamp) {
+  if (!state.running || state.paused) return;
+
+  const elapsed = timestamp - lastFrameTime;
+  const epochsPerFrame = CONFIG.speed * 0.1;
+  
+  if (elapsed > 50) { // ~20fps
+    lastFrameTime = timestamp;
+    const epochsToRun = Math.max(1, Math.floor(CONFIG.speed / 2));
+    
+    for (let e = 0; e < epochsToRun && state.epoch < CONFIG.totalEpochs; e++) {
+      state.epoch++;
+      
+      // Record metrics
+      const loss = computeLoss(state.epoch, CONFIG.totalEpochs);
+      const valLoss = computeValLoss(state.epoch, CONFIG.totalEpochs);
+      const accuracy = computeAccuracy(state.epoch, CONFIG.totalEpochs);
+      const gradNorm = computeGradNorm(state.epoch, CONFIG.totalEpochs);
+      const lr = CONFIG.learningRate * (1 - state.epoch / CONFIG.totalEpochs * 0.5);
+      
+      state.history.loss.push(loss);
+      state.history.valLoss.push(valLoss);
+      state.history.accuracy.push(accuracy);
+      state.history.gradNorm.push(gradNorm);
+      state.history.lr.push(lr);
+      
+      // Take snapshot
+      if (state.epoch % CONFIG.snapshotEvery === 0 || state.epoch === 1) {
+        const snap = takeSnapshot(state.epoch);
+        snap.loss = loss; snap.valLoss = valLoss; snap.accuracy = accuracy;
+        snap.gradNorm = gradNorm; snap.lr = lr;
+        state.currentSnapshot = snap;
+      }
+      
+      // Check phase change
+      const newPhase = detectPhase(state.epoch, CONFIG.totalEpochs);
+      if (newPhase !== state.currentPhase) {
+        state.currentPhase = newPhase;
+        addLog(state.epoch, '🔄 Phase change → ' + PHASES[newPhase].name);
+      }
+    }
+    
+    // Update UI
+    updateUI();
+  }
+  
+  if (state.epoch < CONFIG.totalEpochs) {
+    state.animFrame = requestAnimationFrame(trainingLoop);
+  } else {
+    state.running = false;
+    document.getElementById('btnStart').disabled = false;
+    document.getElementById('btnPause').disabled = true;
+    addLog(CONFIG.totalEpochs, '✅ Training complete!');
+    updateUI();
+  }
+}
+
+function updateUI() {
+  const e = state.epoch;
+  const total = CONFIG.totalEpochs;
+  
+  // Epoch display
+  document.getElementById('epochDisplay').textContent = 'Epoch ' + e + '/' + total;
+  
+  // Phase badge
+  const phase = state.currentPhase;
+  const badge = document.getElementById('phaseBadge');
+  badge.textContent = PHASES[phase].name.toUpperCase();
+  badge.className = 'phase-badge phase-' + phase;
+  
+  // Stats
+  if (state.history.loss.length > 0) {
+    const lastIdx = state.history.loss.length - 1;
+    document.getElementById('statLoss').textContent = state.history.loss[lastIdx].toFixed(4);
+    document.getElementById('statAcc').textContent = (state.history.accuracy[lastIdx] * 100).toFixed(1) + '%';
+    document.getElementById('statGrad').textContent = state.history.gradNorm[lastIdx].toFixed(3);
+    document.getElementById('statLR').textContent = state.history.lr[lastIdx].toExponential(1);
+  }
+  
+  // Progress
+  document.getElementById('trainProgress').style.width = (e / total * 100) + '%';
+  
+  // Time slider
+  document.getElementById('timeSlider').value = Math.floor(e / total * 100);
+  document.getElementById('timeLabel').textContent = 'Epoch ' + e;
+  
+  // Phase details
+  document.getElementById('phaseDetails').innerHTML =
+    '<strong style="color:' + PHASES[phase].color + '">' + PHASES[phase].name + '</strong>: ' + PHASES[phase].desc;
+  
+  // Draw all visualizations
+  drawLossChart();
+  drawWeightDist();
+  drawNetworkHeatmap();
+  drawGradientFlow();
+  drawConceptFormation();
+  drawPhaseTimeline();
+  drawWeightVelocity();
+  updateConceptList();
+}
+
+// ============================================================
+// CONTROL FUNCTIONS
+// ============================================================
+
+function startTraining() {
+  if (state.epoch >= CONFIG.totalEpochs) resetSimulation();
+  state.running = true;
+  state.paused = false;
+  lastFrameTime = 0;
+  document.getElementById('btnStart').disabled = true;
+  document.getElementById('btnPause').disabled = false;
+  addLog(0, '🚀 Training started | LR=' + CONFIG.learningRate.toFixed(3));
+  state.animFrame = requestAnimationFrame(trainingLoop);
+}
+
+function pauseTraining() {
+  state.paused = !state.paused;
+  document.getElementById('btnPause').textContent = state.paused ? '▶ RESUME' : '⏸ PAUSE';
+  if (!state.paused && state.running) {
+    lastFrameTime = 0;
+    state.animFrame = requestAnimationFrame(trainingLoop);
+  }
+  addLog(state.epoch, state.paused ? '⏸ Paused' : '▶ Resumed');
+}
+
+function resetSimulation() {
+  if (state.animFrame) cancelAnimationFrame(state.animFrame);
+  state = {
+    epoch: 0, running: false, paused: false,
+    animFrame: null, lastTime: 0,
+    snapshots: [], currentSnapshot: null,
+    history: { loss: [], valLoss: [], accuracy: [], gradNorm: [], lr: [] },
+    concepts: {}, phases: [], currentPhase: 'random'
+  };
+  
+  CONFIG.networkType = document.getElementById('networkType').value;
+  CONFIG.numLayers = parseInt(document.getElementById('numLayers').value);
+  CONFIG.neuronSize = parseInt(document.getElementById('neuronSize').value);
+  CONFIG.totalEpochs = parseInt(document.getElementById('totalEpochs').value);
+  
+  document.getElementById('btnStart').disabled = false;
+  document.getElementById('btnPause').disabled = true;
+  document.getElementById('btnPause').textContent = '⏸ PAUSE';
+  document.getElementById('epochDisplay').textContent = 'Epoch 0';
+  document.getElementById('phaseBadge').textContent = 'RANDOM INIT';
+  document.getElementById('phaseBadge').className = 'phase-badge phase-random';
+  document.getElementById('trainProgress').style.width = '0%';
+  document.getElementById('timeSlider').value = 0;
+  document.getElementById('timeLabel').textContent = 'Epoch 0';
+  document.getElementById('eventLog').innerHTML = '';
+  document.getElementById('layerLegend').innerHTML = '';
+  document.getElementById('conceptList').innerHTML = '';
+  document.getElementById('statLoss').textContent = '-';
+  document.getElementById('statAcc').textContent = '-';
+  document.getElementById('statGrad').textContent = '-';
+  document.getElementById('statLR').textContent = '-';
+  document.getElementById('phaseDetails').innerHTML = '';
+  
+  // Clear canvases
+  ['lossCanvas','weightDistCanvas','networkCanvas','gradientCanvas','conceptCanvas','phaseCanvas','weightVelocityCanvas'].forEach(id => {
+    const c = document.getElementById(id);
+    if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height);
+  });
+  
+  addLog(0, '↺ Simulation reset');
+}
+
+function timeTravelTo(pct) {
+  const targetEpoch = Math.floor(pct / 100 * CONFIG.totalEpochs);
+  document.getElementById('timeLabel').textContent = 'Epoch ' + targetEpoch;
+  
+  // Find closest snapshot
+  const snap = state.snapshots.find(s => s.epoch >= targetEpoch) || state.snapshots[state.snapshots.length - 1];
+  if (snap) {
+    state.currentSnapshot = snap;
+    drawNetworkHeatmap();
+    addLog(targetEpoch, '🕐 Time traveled to epoch ' + targetEpoch);
+  }
+}
+
+function updateSpeed(val) {
+  CONFIG.speed = parseInt(val);
+  document.getElementById('speedLabel').textContent = val + 'x';
+}
+
+function updateParam(param, val) {
+  CONFIG[param] = parseInt(val);
+  document.getElementById(param + 'Val').textContent = val;
+}
+
+function updateLR(val) {
+  CONFIG.learningRate = val / 1000;
+  document.getElementById('lrVal').textContent = CONFIG.learningRate.toFixed(3);
+}
+
+function updateMomentum(val) {
+  CONFIG.momentum = val / 100;
+  document.getElementById('momentumVal').textContent = CONFIG.momentum.toFixed(2);
+}
+
+function updateDropout(val) {
+  CONFIG.dropout = val / 100;
+  document.getElementById('dropoutVal').textContent = CONFIG.dropout.toFixed(2);
+}
+
+function addLog(epoch, msg) {
+  const log = document.getElementById('eventLog');
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML = '<span class="epoch-tag">[E' + String(epoch).padStart(3,'0') + ']</span> <span class="event-text">' + msg + '</span>';
+  log.insertBefore(entry, log.firstChild);
+  if (log.children.length > 50) log.removeChild(log.lastChild);
+}
+
+// Initialize canvases on load
+window.addEventListener('load', () => {
+  addLog(0, '🧠 Neural Network Time Travel Analyzer ready');
+  addLog(0, '📌 Configure params, then click START TRAINING');
+  addLog(0, '🕐 Use Time Travel slider to inspect any epoch');
+  
+  // Draw empty phase timeline
+  setTimeout(() => {
+    drawPhaseTimeline();
+    updateConceptList();
+  }, 100);
+});
+
+// Handle window resize
+window.addEventListener('resize', () => {
+  if (state.epoch > 0) updateUI();
+  else { drawPhaseTimeline(); }
+});
+</script>
+</body>
+</html>
